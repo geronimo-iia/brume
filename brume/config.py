@@ -15,6 +15,11 @@ from stack import stack_outputs
 # current outputs of loaded stacks
 stackOutputsDefinition = {}
 
+def _check_key_exists(key, container, stack_name):
+    if not (key in container):
+        click.secho('[ERROR] No key {} variable in stack {}'.format(key, stack_name), err=True, fg='red')
+        exit(1)
+
 def cloudformation(stack_name, key, *subKeys):
     """
     Return the value of the `key` in outputs of specified stack `stack_name`.
@@ -24,16 +29,11 @@ def cloudformation(stack_name, key, *subKeys):
     if not (stack_name in stackOutputsDefinition):
         stackOutputsDefinition[stack_name] = stack_outputs(stack_name)
     currentDefinition = stackOutputsDefinition[stack_name]
-
-    if not (key in currentDefinition):
-        click.secho('[ERROR] No key {} variable in stack {}'.format(key, stack_name), err=True, fg='red')
-        exit(1)
+    _check_key_exists(key, currentDefinition, stack_name)
     currentDefinition = currentDefinition[key]
 
     for subKey in subKeys:
-        if not (subKey in currentDefinition):
-            click.secho('[ERROR] No key {} in stack {}'.format(subKey, stack_name), err=True, fg='red')
-            exit(1)
+        _check_key_exists(subKey, currentDefinition, stack_name)
         currentDefinition = currentDefinition[subKey]
 
     return currentDefinition
