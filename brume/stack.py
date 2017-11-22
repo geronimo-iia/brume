@@ -40,18 +40,6 @@ def _make_parameters(params_list):
     return [{'ParameterKey': k, 'ParameterValue': v} for k, v in params_list.items()]
 
 
-def _outputs_for(stack):
-    try:
-        outputs = cfn_client().describe_stacks(StackName=stack)['Stacks'][0].get('Outputs', {})
-        return {o['OutputKey']: o['OutputValue'] for o in outputs}
-    except ClientError as e:
-        if 'does not exist' in e.message:
-            click.secho('Stack [{0}] does not exist'.format(stack), err=True, fg='red')
-            exit(1)
-        else:
-            raise e
-
-
 def _stack_walker(client, outputs, stack, collector):
     try:
         description = client.describe_stacks(StackName=stack)['Stacks'][0]
@@ -125,14 +113,7 @@ class Stack(object):
         """
         Return a dict containing the outputs of the current stack and its nested stacks.
         """
-        outputs = {self.stack_name: _outputs_for(self.stack_name)}
-        stack_resources = cfn_client().describe_stack_resources(StackName=self.stack_name)
-        outputs.update({
-            res['LogicalResourceId']: _outputs_for(res['PhysicalResourceId'])
-            for res in stack_resources['StackResources']
-            if res['ResourceType'] == 'AWS::CloudFormation::Stack'
-        })
-        return outputs
+        return stack_outputs(self.stack_name)
 
     def params(self):
         """
