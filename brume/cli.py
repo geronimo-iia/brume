@@ -2,21 +2,20 @@
 Brume CLI module.
 """
 
+import json
 from glob import glob
 from os import path
 
 import click
 from yaml import dump
-import json
 
-from . import VERSION
-from .assets import send_assets
-from .checker import check_templates
-from .config import Config
-from .stack import Stack
-from .template import Template
-
-DEFAULT_BRUME_CONFIG = 'brume.yml'
+import brume.config
+from brume import VERSION
+from brume.assets import send_assets
+from brume.boto_client import bucket_exists
+from brume.checker import check_templates
+from brume.stack import Stack
+from brume.template import Template
 
 
 class Context(object):
@@ -35,7 +34,8 @@ pass_ctx = click.make_pass_decorator(Context, ensure=True)
 
 def config_callback(ctx, _, value):
     ctx = ctx.ensure_object(Context)
-    ctx.config = Config.load(value)
+    brume.config.configuration_file = value
+    ctx.config = brume.config.Config.load()
     ctx.stack = Stack(ctx.config['stack'])
     return value
 
@@ -43,8 +43,8 @@ def config_callback(ctx, _, value):
 @click.group()
 @click.version_option(VERSION, '-v', '--version')
 @click.help_option('-h', '--help')
-@click.option('-c', '--config', expose_value=False, default=DEFAULT_BRUME_CONFIG,
-              help='Configuration file (defaults to {}).'.format(DEFAULT_BRUME_CONFIG),
+@click.option('-c', '--config', expose_value=False, default=brume.config.DEFAULT_BRUME_CONFIG,
+              help='Configuration file (defaults to {}).'.format(brume.config.DEFAULT_BRUME_CONFIG),
               callback=config_callback)
 def cli():
     pass
@@ -53,18 +53,14 @@ def cli():
 @cli.command()
 @pass_ctx
 def config(ctx):
-    """
-    Print the current stack confguration.
-    """
+    """Print the current stack configuration."""
     click.echo(dump(ctx.config, default_flow_style=False))
 
 
 @cli.command()
 @pass_ctx
 def create(ctx):
-    """
-    Create a new CloudFormation stack.
-    """
+    """Create a new CloudFormation stack."""
     validate_and_upload(ctx.config)
     ctx.stack.create()
 
@@ -72,9 +68,7 @@ def create(ctx):
 @cli.command()
 @pass_ctx
 def update(ctx):
-    """
-    Update an existing CloudFormation stack.
-    """
+    """Update an existing CloudFormation stack."""
     validate_and_upload(ctx.config)
     ctx.stack.update()
 
@@ -82,9 +76,7 @@ def update(ctx):
 @cli.command()
 @pass_ctx
 def deploy(ctx):
-    """
-    Create or update a CloudFormation stack.
-    """
+    """Create or update a CloudFormation stack."""
     validate_and_upload(ctx.config)
     ctx.stack.create_or_update()
     ctx.stack.outputs()
@@ -93,18 +85,14 @@ def deploy(ctx):
 @cli.command()
 @pass_ctx
 def delete(ctx):
-    """
-    Delete the CloudFormation stack.
-    """
+    """Delete the CloudFormation stack."""
     ctx.stack.delete()
 
 
 @cli.command()
 @pass_ctx
 def status(ctx):
-    """
-    Get the status of a CloudFormation stack.
-    """
+    """Get the status of a CloudFormation stack."""
     ctx.stack.status()
 
 
@@ -114,9 +102,7 @@ def status(ctx):
 @click.option('output_format', '-f', '--format', type=click.Choice(['text', 'json', 'yaml']),
               default='text', help='Output format (text/json/yaml)')
 def outputs(ctx, output_format, flat=False):
-    """
-    Get the full list of outputs of a CloudFormation stack.
-    """
+    """Get the full list of outputs of a CloudFormation stack."""
     stack_outputs = ctx.stack.outputs()
     if output_format == 'text':
         if flat:
@@ -145,9 +131,7 @@ def outputs(ctx, output_format, flat=False):
 @click.option('output_format', '-f', '--format', type=click.Choice(['text', 'json', 'yaml']),
               default='text', help='Output format (text/json/yaml)')
 def parameters(ctx, output_format, flat=False):
-    """
-    Get the full list of parameters of a CloudFormation stack.
-    """
+    """Get the full list of parameters of a CloudFormation stack."""
     stack_params = ctx.stack.params()
     if output_format == 'text':
         if flat:
@@ -173,9 +157,7 @@ def parameters(ctx, output_format, flat=False):
 @cli.command()
 @pass_ctx
 def validate(ctx):
-    """
-    Validate CloudFormation templates.
-    """
+    """Validate CloudFormation templates."""
     error = False
     for t in collect_templates(ctx.config):
         valid = t.validate()
@@ -188,9 +170,7 @@ def validate(ctx):
 @cli.command()
 @pass_ctx
 def upload(ctx):
-    """
-    Upload CloudFormation templates and assets to S3.
-    """
+    """Upload CloudFormation templates and assets to S3."""
     process_assets(ctx.config)
     return [t.upload() for t in collect_templates(ctx.config)]
 
@@ -198,56 +178,23 @@ def upload(ctx):
 @cli.command()
 @pass_ctx
 def check(ctx):
-    """
-    Check CloudFormation templates.
-    """
+    """Check CloudFormation templates."""
     check_templates(ctx.config['stack']['template_body'])
 
 
-@cli.command()
-def init():
-    """
-    Initialise a Brume project with a simple configuration file ({}).
-    """
-    if path.isfile(DEFAULT_BRUME_CONFIG):
-        click.echo('{0} already exists in current directory. Nothing to do.'.format(DEFAULT_BRUME_CONFIG))
-    else:
-        with open(DEFAULT_BRUME_CONFIG, 'w') as brume_file:
-            brume_file.write("""
----
-region: {{ env('AWS_DEFAULT_REGION', 'eu-west-1') }}
-
-{% set stack_name = 'my-stack' %}
-
-stack:
-    stack_name: {{ stack_name }}
-
-    template_body: Main.json
-    capabilities: [ CAPABILITY_IAM ]
-    on_failure: DELETE
-
-    parameters:
-    GitCommit:  '{{ git_commit }}'
-    GitBranch:  '{{ git_branch }}'
-
-templates:
-    s3_bucket: my_bucket
-    s3_path: {{ stack_name }}
-""")
-
-
 def process_assets(conf):
-    """
-    Upload project assets to S3.
-    """
+    """Upload project assets to S3."""
     if 'assets' not in conf:
         return
     assets_config = conf['assets']
     local_path = assets_config['local_path']
     s3_bucket = assets_config['s3_bucket']
     s3_path = assets_config['s3_path']
-    click.echo('Processing assets from {} to s3://{}/{}'.format(local_path, s3_bucket, s3_path))
-    send_assets(local_path, s3_bucket, s3_path)
+    if bucket_exists(s3_bucket):
+        click.echo('Processing assets from {} to s3://{}/{}'.format(local_path, s3_bucket, s3_path))
+        send_assets(local_path, s3_bucket, s3_path)
+    else:
+        click.echo('Bucket does not exist {}'.format(s3_bucket))
 
 
 def collect_templates(conf):
@@ -263,9 +210,7 @@ def collect_templates(conf):
 
 
 def validate_and_upload(conf):
-    """
-    Validate and upload CloudFormation templates to S3.
-    """
+    """Validate and upload CloudFormation templates to S3."""
     templates = collect_templates(conf)
     error = False
     for t in templates:

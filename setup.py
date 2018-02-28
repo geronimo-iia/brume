@@ -25,13 +25,13 @@ AUTHORS = {
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'boto3>=1.4.5',
+    'boto3>=1.5.27',
     'crayons==0.1.2',
     'click>=6.7',
     'PyYAML==3.12',
-    'Jinja2==2.9.6',
-    'pytz==2017.2',
-    'delegator.py==0.0.13',
+    'Jinja2==2.10',
+    'pytz==2018.3',
+    'delegator.py==0.0.14',
     'six==1.11.0'
 ]
 
@@ -107,15 +107,7 @@ setup(
     setup_requires=['pytest-runner'],
     tests_require=['pytest', 'moto'],
     keywords=['AWS', 'CloudFormation'],
-    install_requires=[
-        'boto3>=1.4.5',
-        'crayons==0.1.2',
-        'click>=6.7',
-        'PyYAML==3.12',
-        'Jinja2==2.9.6',
-        'pytz==2017.2',
-        'delegator.py==0.0.13',
-    ],
+    install_requires=REQUIRED,
     entry_points={
         'console_scripts': ['brume=brume.cli:cli']
     },
@@ -128,7 +120,6 @@ setup(
         'Operating System :: Unix',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
