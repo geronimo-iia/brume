@@ -41,9 +41,17 @@ def _make_parameters(params_list):
 
 
 def _stack_walker(client, outputs, stack, collector):
+    """
+    :param client: cloudformation client
+    :param outputs: current collected output
+    :param stack: current stack name
+    :param collector: function (outputs, description)
+    :return: aggregated output
+    Map collector function on stack and nested stack.
+    """
     try:
         description = client.describe_stacks(StackName=stack)['Stacks'][0]
-        stackName = description['StackName']
+        stack_name = description['StackName']
         collector(outputs, description)
         substacks = [s for s in client.describe_stack_resources(StackName=stack)['StackResources'] if s['ResourceType'] == 'AWS::CloudFormation::Stack']
         for s in substacks:

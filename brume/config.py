@@ -13,30 +13,30 @@ import jinja2
 
 from stack import stack_outputs
 # current outputs of loaded stacks
-stackOutputsDefinition = {}
+stack_outputs_definition = {}
 
 def _check_key_exists(key, container, stack_name):
-    if not (key in container):
+    if key not in container:
         click.secho('[ERROR] No key {} variable in stack {}'.format(key, stack_name), err=True, fg='red')
         exit(1)
 
-def cloudformation(stack_name, key, *subKeys):
+def cloudformation(stack_name, key, *sub_keys):
     """
     Return the value of the `key` in outputs of specified stack `stack_name`.
 
-    If `subKey` is specified, return the value of the `subKey` found in the value of the `key` in outputs of specified stack `stack_name`.
+    If `sub_keys` is specified, return the value of the `sub_keys` found in the value of the `key` in outputs of specified stack `stack_name`.
     """
-    if not (stack_name in stackOutputsDefinition):
-        stackOutputsDefinition[stack_name] = stack_outputs(stack_name)
-    currentDefinition = stackOutputsDefinition[stack_name]
-    _check_key_exists(key, currentDefinition, stack_name)
-    currentDefinition = currentDefinition[key]
+    if stack_name not in stack_outputs_definition:
+        stack_outputs_definition[stack_name] = stack_outputs(stack_name)
+    current_definition = stack_outputs_definition[stack_name]
+    _check_key_exists(key, current_definition, stack_name)
+    current_definition = current_definition[key]
 
-    for subKey in subKeys:
-        _check_key_exists(subKey, currentDefinition, stack_name)
-        currentDefinition = currentDefinition[subKey]
+    for subKey in sub_keys:
+        _check_key_exists(subKey, current_definition, stack_name)
+        current_definition = current_definition[subKey]
 
-    return currentDefinition
+    return current_definition
 
 def is_installed(cmd):
     """Check that ``cmd`` is installed and available in $PATH."""
@@ -57,14 +57,17 @@ def is_git_repo():
 class Config():
 
     @staticmethod
-    def cfn(stack_name, key, secondKey=None, thirdKey=None):
-        if (secondKey is None):
+    def cfn(stack_name, key, second_key=None, third_key=None):
+        """Return the value of the `key` output of stack_name cloud formation stack.
+           cfn methods will lookup recursively in nested stack if second_key (and third_key) is provided.
+        """
+        if (second_key is None):
             return cloudformation(stack_name, key)
         else:
-            if (thirdKey is None):
-                return cloudformation(stack_name, key, secondKey)
+            if (third_key is None):
+                return cloudformation(stack_name, key, second_key)
             else:
-                return cloudformation(stack_name, key, secondKey, thirdKey)
+                return cloudformation(stack_name, key, second_key, third_key)
 
     @staticmethod
     def env(key, default=None):
