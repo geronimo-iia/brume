@@ -18,7 +18,7 @@ def brume_config_file():
     return configuration_file or DEFAULT_BRUME_CONFIG
 
 
-from stack import stack_outputs
+from brume.stack import stack_outputs
 # current outputs of loaded stacks
 stack_outputs_definition = {}
 
