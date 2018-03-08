@@ -18,7 +18,7 @@ RESET  := $(shell tput -Txterm sgr0)
 # A category can be added with @category
 HELP_HELPER = \
 		%help; \
-		while(<>) { push @{$$help{$$2 // 'targets'}}, [$$1, $$3] if /^([a-zA-Z\-\%]+)\s*:.*\#\#(?:@([a-zA-Z\-\%]+))?\s(.*)$$/ }; \
+		while(<>) { push @{$$help{$$2 // 'targets'}}, [$$1, $$3] if /^([a-zA-Z_\-\%]+)\s*:.*\#\#(?:@([a-zA-Z\-\%]+))?\s(.*)$$/ }; \
 		print "usage: make [target]\n\n"; \
 		for (sort keys %help) { \
 		print "${WHITE}$$_:${RESET}\n"; \

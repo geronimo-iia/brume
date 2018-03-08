@@ -34,6 +34,9 @@ pass_ctx = click.make_pass_decorator(Context, ensure=True)
 
 
 def config_callback(ctx, _, value):
+    """
+    Initialize context object
+    """
     ctx = ctx.ensure_object(Context)
     brume.config.configuration_file = value
     ctx.config = brume.config.Config.load()
@@ -50,6 +53,7 @@ def config_callback(ctx, _, value):
               help='Configuration file (defaults to {}).'.format(brume.config.DEFAULT_BRUME_CONFIG),
               callback=config_callback)
 def cli():
+    """Set global cli option"""
     pass
 
 

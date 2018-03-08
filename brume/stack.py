@@ -40,6 +40,7 @@ def _make_tags(tags_list):
 def _make_parameters(params_list):
     return [{'ParameterKey': k, 'ParameterValue': v} for k, v in params_list.items()]
 
+
 class Stack(object):
     """Represent a CloudFormation stack."""
 
@@ -61,6 +62,9 @@ class Stack(object):
 
     @property
     def configuration(self):
+        """
+        return stack configuration
+        """
         stack_cfg = dict(
             StackName=self.stack_name,
             Parameters=self.parameters,
@@ -73,10 +77,16 @@ class Stack(object):
             stack_cfg['TemplateBody'] = self.main_template.content
         return stack_cfg
 
+    def cloudformation_client(self):
+        """
+        return cloudformation client
+        """
+        return cfn_client(self.region)
+
     def get_stacks(self):
         """Return a list of stacks containing the current stack and its nested stack resources."""
         stacks = [self.stack_name]
-        substacks = cfn_client().describe_stack_resources(StackName=self.stack_name)
+        substacks = self.cloudformation_client().describe_stack_resources(StackName=self.stack_name)
         stacks.extend([
             s['PhysicalResourceId']
             for s in substacks['StackResources']
@@ -98,7 +108,8 @@ class Stack(object):
             return {
                 stack: {
                     param['ParameterKey']: param['ParameterValue']
-                    for param in cfn_client().describe_stacks(StackName=stack)['Stacks'][0].get('Parameters', [])
+                    for param in self.cloudformation_client()
+                                     .describe_stacks(StackName=stack)['Stacks'][0].get('Parameters', [])
                 } for stack in self.get_stacks()
             }
         except ClientError as e:
@@ -108,13 +119,12 @@ class Stack(object):
             else:
                 raise e
 
-    @staticmethod
-    def exists(stack_name):
+    def exists(self, stack_name):
         """
         Return `True` if a stack exists with the name `stack_name`, `False` otherwise.
         """
         try:
-            cfn_client().describe_stacks(StackName=stack_name)
+            self.cloudformation_client().describe_stacks(StackName=stack_name)
         except ClientError as e:
             if 'does not exist' in e.message:
                 return False
@@ -127,7 +137,7 @@ class Stack(object):
         """
         click.echo('Creating stack {0}...'.format(self.stack_name))
         try:
-            cfn_client().create_stack(**self.configuration)
+            self.cloudformation_client().create_stack(**self.configuration)
             time.sleep(5)
             self.tail()
         except ClientError as err:
@@ -143,7 +153,7 @@ class Stack(object):
         """
         click.echo('Updating stack {0}...'.format(self.stack_name))
         try:
-            cfn_client().update_stack(**self.configuration)
+            self.cloudformation_client().update_stack(**self.configuration)
             self.tail()
         except ClientError as err:
             if 'does not exist' in err.message:
@@ -160,7 +170,7 @@ class Stack(object):
         """
         Create or update the stack in CloudFormation if it already exists.
         """
-        if Stack.exists(self.stack_name):
+        if self.exists(self.stack_name):
             self.update()
         else:
             self.create()
@@ -170,8 +180,8 @@ class Stack(object):
         Delete the stack in CloudFormation.
         """
         click.echo('Deleting stack {0}...'.format(self.stack_name))
-        if Stack.exists(self.stack_name):
-            cfn_client().delete_stack(StackName=self.stack_name)
+        if self.exists(self.stack_name):
+            self.cloudformation_client().delete_stack(StackName=self.stack_name)
             try:
                 self.tail(catch_error=True)
                 click.echo(crayons.yellow('Stack [{0}] is deleted'.format(self.stack_name)))
@@ -186,7 +196,7 @@ class Stack(object):
         Return the status of the stack in CloudFormation, based on the last stack event.
         """
         try:
-            stacks = cfn_client().describe_stacks(StackName=self.stack_name)
+            stacks = self.cloudformation_client().describe_stacks(StackName=self.stack_name)
             click.echo(Color.for_status(next(s['StackStatus'] for s in stacks['Stacks'])))
         except KeyError as err:
             click.secho(err, err=True, fg='red')
@@ -200,7 +210,7 @@ class Stack(object):
         """
         Fetch the stack events
         """
-        events = cfn_client().describe_stack_events(StackName=self.stack_name)
+        events = self.cloudformation_client().describe_stack_events(StackName=self.stack_name)
         return reversed(events['StackEvents'])
 
     def tail(self, sleep_time=3, catch_error=False):

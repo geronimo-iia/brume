@@ -15,7 +15,8 @@ CFN_TEMPLATE_SIZE_LIMIT = 51200
 DEFAULT_TEMPLATE_S3_PATH = ''
 DEFAULT_TEMPLATE_LOCAL_PATH = ''
 TEMPLATE_COPY_SUFFIX = '.copy'
-DEFAULT_TEMPLATE_REGION='us-east-1'
+DEFAULT_TEMPLATE_REGION = 'us-east-1'
+
 
 class Template(object):
     """CloudFormation template."""
@@ -33,7 +34,8 @@ class Template(object):
     @property
     def public_url(self):
         """Return the template's public URL on S3."""
-        s3_url = path.normpath('{0}.s3.amazonaws.com/{1}'.format(self.s3_bucket, self.s3_key))
+        s3_url = path.normpath(
+            '{0}.s3.amazonaws.com/{1}'.format(self.s3_bucket, self.s3_key))
         return 'https://{0}'.format(s3_url)
 
     @property
@@ -58,7 +60,8 @@ class Template(object):
             with open(self.local_file_path, 'r') as _file:
                 return _file.read()
         except IOError as err:
-            click.echo(crayons.red('File {!r} does not exist').format(self.local_file_path), err=True)
+            click.echo(crayons.red('File {!r} does not exist').format(
+                self.local_file_path), err=True)
             raise err
 
     def validate(self):
@@ -77,7 +80,8 @@ class Template(object):
             validation_path = self.public_url + TEMPLATE_COPY_SUFFIX
             params = {'TemplateURL': validation_path}
         try:
-            click.echo('Validating {0} ...'.format(crayons.yellow(validation_path)), nl=False)
+            click.echo('Validating {0} ...'.format(
+                crayons.yellow(validation_path)), nl=False)
             cfn_client(self.region).validate_template(**params)
         except ClientError as error:
             click.echo(crayons.red('invalid'))
@@ -97,6 +101,8 @@ class Template(object):
         if copy:
             s3_key += TEMPLATE_COPY_SUFFIX
             public_url += TEMPLATE_COPY_SUFFIX
-        click.echo('Publishing {0} to {1}'.format(crayons.yellow(self.local_file_path), public_url))
-        s3_client(self.region).put_object(Bucket=self.s3_bucket, Body=self.content, Key=s3_key)
+        click.echo('Publishing {0} to {1}'.format(
+            crayons.yellow(self.local_file_path), public_url))
+        s3_client(self.region).put_object(
+            Bucket=self.s3_bucket, Body=self.content, Key=s3_key)
         return self
