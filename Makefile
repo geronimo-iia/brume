@@ -38,6 +38,10 @@ help: ##@help Prints help
 #
 ###################################################################################################
 
+.PHONY: deps
+deps:  ## Install Python dependencies
+	pip install --quiet --upgrade --requirement requirements.txt
+
 .PHONY: check_style
 check_style:  ## Check Python code style
 	pycodestyle *.py brume --config .pycodestyle
@@ -52,6 +56,10 @@ clean:  ## Clean temporary and build files
 publish: clean  ## Create Python package and upload to PyPI
 	@python setup.py publish
 
+.PHONY: build
+build: clean ## Build project
+	@python setup.py build install
+
 .PHONY: test
-test:  ## Run tests
+test: build  ## Run tests
 	@pytest tests

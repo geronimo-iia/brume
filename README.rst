@@ -176,9 +176,15 @@ In your Jinja2 template we have predefined function:
 Example usage of cfn function:
 
 ::
+
+    {% set region = env('AWS_REGION') %}
+    region: {{ region }}
+    
     parameters:
-      MyParam: {{ cfn('my_other_stack', 'MyParam') }} # get parameter 'MyParam' of stack 'my_other_stack'
-      VPCStackName: {{ cfn('my_other_stack', 'Vpc', 'VPC_ID') }} # get parameter 'VPC_ID' of nested stack 'Vpc' of stack 'my_other_stack'
+      MyParam: {{ cfn(region, 'my_other_stack', 'MyParam') }} # get parameter 'MyParam' of stack 'my_other_stack'
+      VPCStackName: {{ cfn(region, 'my_other_stack', 'Vpc', 'VPC_ID') }} # get parameter 'VPC_ID' of nested stack 'Vpc' of stack 'my_other_stack'
+
+
 
 
 
