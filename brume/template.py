@@ -15,7 +15,7 @@ CFN_TEMPLATE_SIZE_LIMIT = 51200
 DEFAULT_TEMPLATE_S3_PATH = ''
 DEFAULT_TEMPLATE_LOCAL_PATH = ''
 TEMPLATE_COPY_SUFFIX = '.copy'
-
+DEFAULT_TEMPLATE_REGION='us-east-1'
 
 class Template(object):
     """CloudFormation template."""
@@ -23,6 +23,7 @@ class Template(object):
     def __init__(self, file_path, config):
         self.local_file_path = file_path
         self.file_path = file_path
+        self.region = config.get('region', DEFAULT_TEMPLATE_REGION)
         self.s3_bucket = config['s3_bucket']
         self.s3_path = config.get('s3_path', DEFAULT_TEMPLATE_S3_PATH)
         local_path = config.get('local_path', DEFAULT_TEMPLATE_LOCAL_PATH)
@@ -77,7 +78,7 @@ class Template(object):
             params = {'TemplateURL': validation_path}
         try:
             click.echo('Validating {0} ...'.format(crayons.yellow(validation_path)), nl=False)
-            cfn_client().validate_template(**params)
+            cfn_client(self.region).validate_template(**params)
         except ClientError as error:
             click.echo(crayons.red('invalid'))
             click.echo(error.message, err=True)
@@ -97,5 +98,5 @@ class Template(object):
             s3_key += TEMPLATE_COPY_SUFFIX
             public_url += TEMPLATE_COPY_SUFFIX
         click.echo('Publishing {0} to {1}'.format(crayons.yellow(self.local_file_path), public_url))
-        s3_client().put_object(Bucket=self.s3_bucket, Body=self.content, Key=s3_key)
+        s3_client(self.region).put_object(Bucket=self.s3_bucket, Body=self.content, Key=s3_key)
         return self

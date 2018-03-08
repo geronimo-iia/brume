@@ -12,6 +12,7 @@ from brume.boto_client import cfn_client
 from brume.color import Color
 from brume.config import Config
 from brume.template import Template
+from brume.output import stack_outputs
 
 TZ = pytz.timezone('UTC')
 
@@ -39,49 +40,13 @@ def _make_tags(tags_list):
 def _make_parameters(params_list):
     return [{'ParameterKey': k, 'ParameterValue': v} for k, v in params_list.items()]
 
-
-def _stack_walker(client, outputs, stack, collector):
-    """
-    :param client: cloudformation client
-    :param outputs: current collected output
-    :param stack: current stack name
-    :param collector: function (outputs, description)
-    :return: aggregated output
-    Map collector function on stack and nested stack.
-    """
-    try:
-        description = client.describe_stacks(StackName=stack)['Stacks'][0]
-        stack_name = description['StackName']
-        collector(outputs, description)
-        substacks = [s for s in client.describe_stack_resources(StackName=stack)['StackResources'] if s['ResourceType'] == 'AWS::CloudFormation::Stack']
-        for s in substacks:
-            outputs[s['LogicalResourceId']] = {}
-            _stack_walker(client, outputs[s['LogicalResourceId']], s['PhysicalResourceId'], collector)
-        return outputs
-    except ClientError as e:
-        if 'does not exist' in e.message:
-            click.secho('Stack [{}] does not exist'.format(stack), err=True, fg='red')
-            exit(1)
-        else:
-            raise e
-
-def _output_collector(outputs, description):
-    for o in description.get('Outputs', []):
-        outputs[o['OutputKey']] = o['OutputValue']
-
-def stack_outputs(stack_name):
-    """Return specified stack outputs."""
-    return _stack_walker(cfn_client(), {}, stack_name, _output_collector)
-
-
-
 class Stack(object):
     """Represent a CloudFormation stack."""
 
     stack_name = None
     capabilities = []
 
-    def __init__(self, conf):
+    def __init__(self, region, conf):
         self.stack_name = conf['stack_name']
         self.template_body = conf['template_body']
         self.on_failure = conf.get('on_failure', 'ROLLBACK')
@@ -89,6 +54,7 @@ class Stack(object):
         self.parameters = _make_parameters(conf.get('parameters', {}))
         self.tags = _make_tags(conf.get('tags', {}))
         self.main_template = Template(self.template_body, Config.config['templates'])
+        self.region = region
 
         # Check the events 10 seconds before if the stack update starts way too soon
         self.update_started_at = datetime.now(TZ) - timedelta(seconds=10)
@@ -122,7 +88,7 @@ class Stack(object):
         """
         Return a dict containing the outputs of the current stack and its nested stacks.
         """
-        return stack_outputs(self.stack_name)
+        return stack_outputs(region=self.region, stack_name=self.stack_name)
 
     def params(self):
         """
