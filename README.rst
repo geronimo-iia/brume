@@ -1,6 +1,11 @@
 Brume: an AWS CloudFormation deployer
 =====================================
 
+.. warning::
+
+   **⚠️ This repository is archived and no longer maintained.**
+   No further development, bug fixes, or security updates will be provided.
+
 .. image:: https://img.shields.io/travis/flou/brume.svg
     :target: https://travis-ci.org/flou/brume
 
